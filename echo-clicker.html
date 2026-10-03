@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Эхо Пустоты — Кликер</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a14 100%);
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    overflow-x: hidden;
+  }
+  .container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 1100px;
+    width: 95%;
+    padding: 24px;
+  }
+  .panel {
+    background: rgba(20, 20, 35, 0.7);
+    border: 1px solid rgba(120, 100, 255, 0.2);
+    border-radius: 20px;
+    padding: 28px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 40px rgba(80, 50, 200, 0.15);
+  }
+  .title {
+    text-align: center;
+    font-size: 22px;
+    letter-spacing: 3px;
+    color: #b0a0ff;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+    letter-spacing: 2px;
+    margin-bottom: 24px;
+  }
+  .score {
+    text-align: center;
+    font-size: 52px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #a88bff, #5ce1e6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 4px;
+    transition: transform 0.1s;
+  }
+  .score.pop { transform: scale(1.08); }
+  .per-sec {
+    text-align: center;
+    color: #7a7a9a;
+    font-size: 14px;
+    margin-bottom: 28px;
+  }
+  .click-btn {
+    display: block;
+    margin: 0 auto 28px;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    border: 2px solid rgba(160, 130, 255, 0.5);
+    background: radial-gradient(circle at 30% 30%, #3a2f6b, #1a1233);
+    color: #d0c0ff;
+    font-size: 15px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 0 40px rgba(120, 90, 255, 0.3), inset 0 0 30px rgba(120, 90, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+  }
+  .click-btn:hover {
+    box-shadow: 0 0 60px rgba(120, 90, 255, 0.6), inset 0 0 40px rgba(120, 90, 255, 0.3);
+    border-color: rgba(180, 150, 255, 0.8);
+  }
+  .click-btn:active { transform: scale(0.96); }
+  .click-btn::after {
+    content: '';
+    position: absolute;
+    inset: 20px;
+    border-radius: 50%;
+    border: 1px solid rgba(180, 150, 255, 0.3);
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    font-size: 13px;
+    color: #888;
+  }
+  .stat { padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px; }
+  .stat span { color: #b0a0ff; float: right; }
+
+  .upgrades-title {
+    font-size: 14px;
+    letter-spacing: 3px;
+    color: #888;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(120, 100, 255, 0.15);
+  }
+  .upgrades {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 520px;
+    overflow-y: auto;
+    padding-right: 6px;
+  }
+  .upgrades::-webkit-scrollbar { width: 6px; }
+  .upgrades::-webkit-scrollbar-thumb { background: rgba(120,100,255,0.3); border-radius: 3px; }
+
+  .upgrade {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: rgba(30, 30, 50, 0.6);
+    border: 1px solid rgba(120, 100, 255, 0.15);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .upgrade:hover:not(.disabled) {
+    background: rgba(50, 40, 90, 0.7);
+    border-color: rgba(160, 130, 255, 0.5);
+    transform: translateX(4px);
+  }
+  .upgrade.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .upgrade-icon {
+    font-size: 26px;
+    width: 40px;
+    text-align: center;
+    filter: drop-shadow(0 0 8px rgba(160,130,255,0.5));
+  }
+  .upgrade-info { flex: 1; }
+  .upgrade-name {
+    font-size: 14px;
+    color: #d0c8ff;
+    font-weight: 600;
+    margin-bottom: 3px;
+  }
+  .upgrade-desc {
+    font-size: 11px;
+    color: #777;
+    line-height: 1.3;
+  }
+  .upgrade-cost {
+    text-align: right;
+    font-size: 12px;
+    color: #5ce1e6;
+    font-weight: 600;
+    min-width: 80px;
+  }
+  .upgrade-cost small { display: block; color: #666; font-weight: 400; font-size: 10px; }
+  .upgrade-level {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 10px;
+    color: #a88bff;
+    background: rgba(120, 90, 255, 0.15);
+    padding: 2px 6px;
+    border-radius: 6px;
+  }
+
+  .reset {
+    margin-top: 16px;
+    width: 100%;
+    padding: 10px;
+    background: transparent;
+    border: 1px solid rgba(200, 60, 60, 0.3);
+    color: #a05050;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    letter-spacing: 1px;
+    transition: 0.2s;
+  }
+  .reset:hover { background: rgba(200, 60, 60, 0.1); border-color: rgba(200, 60, 60, 0.6); }
+
+  .float {
+    position: fixed;
+    pointer-events: none;
+    color: #b0a0ff;
+    font-weight: 700;
+    font-size: 20px;
+    animation: floatUp 1s ease-out forwards;
+    z-index: 100;
+  }
+  @keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-80px) scale(1.3); }
+  }
+
+  @media (max-width: 800px) {
+    .container { grid-template-columns: 1fr; }
+    .score { font-size: 40px; }
+    .click-btn { width: 160px; height: 160px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="panel">
+    <div class="title">Эхо Пустоты</div>
+    <div class="subtitle">каждый клик оставляет след</div>
+    <div class="score" id="score">0</div>
+    <div class="per-sec" id="perSec">0 эха / сек</div>
+    <button class="click-btn" id="clickBtn">ВЗЫВАТЬ</button>
+    <div class="stats">
+      <div class="stat">За клик <span id="perClick">1</span></div>
+      <div class="stat">Всего кликов <span id="totalClicks">0</span></div>
+      <div class="stat">Всего добыто <span id="totalEarned">0</span></div>
+      <div class="stat">Усилителей <span id="upgradesOwned">0</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="upgrades-title">Резонансные усилители</div>
+    <div class="upgrades" id="upgrades"></div>
+    <button class="reset" id="resetBtn">⟲ Растворить всё</button>
+  </div>
+</div>
+
+<script>
+const upgrades = [
+  {
+    id: 'whisper',
+    icon: '🜂',
+    name: 'Шёпот Бездны',
+    desc: '+1 эхо за клик. Голос, рождающийся из тишины.',
+    baseCost: 15,
+    multiplier: 1.15,
+    type: 'click',
+    value: 1
+  },
+  {
+    id: 'pulse',
+    icon: '◉',
+    name: 'Пульс Ядра',
+    desc: '+0.5 эха в секунду. Ровное биение в темноте.',
+    baseCost: 50,
+    multiplier: 1.15,
+    type: 'auto',
+    value: 0.5
+  },
+  {
+    id: 'resonance',
+    icon: '≋',
+    name: 'Резонанс Сфер',
+    desc: '+5 эха за клик. Вибрация, усиленная тысячекратно.',
+    baseCost: 400,
+    multiplier: 1.18,
+    type: 'click',
+    value: 5
+  },
+  {
+    id: 'chorus',
+    icon: '♫',
+    name: 'Хор Отголосков',
+    desc: '+4 эха в секунду. Множество голосов, говорящих как один.',
+    baseCost: 1200,
+    multiplier: 1.18,
+    type: 'auto',
+    value: 4
+  },
+  {
+    id: 'rift',
+    icon: '⌬',
+    name: 'Разлом Памяти',
+    desc: '+25 эха за клик. Прикосновение к тому, чего не было.',
+    baseCost: 8000,
+    multiplier: 1.2,
+    type: 'click',
+    value: 25
+  },
+  {
+    id: 'storm',
+    icon: '⚡',
+    name: 'Шторм Искр',
+    desc: '+30 эха в секунду. Хаос, обретший форму.',
+    baseCost: 25000,
+    multiplier: 1.2,
+    type: 'auto',
+    value: 30
+  },
+  {
+    id: 'singularity',
+    icon: '●',
+    name: 'Сингулярность',
+    desc: '+150 эха за клик. Точка, где всё сходится в одно.',
+    baseCost: 200000,
+    multiplier: 1.22,
+    type: 'click',
+    value: 150
+  },
+  {
+    id: 'nebula',
+    icon: '❋',
+    name: 'Туманность Грёз',
+    desc: '+200 эха в секунду. Облако несбывшегося, что питает тебя.',
+    baseCost: 750000,
+    multiplier: 1.22,
+    type: 'auto',
+    value: 200
+  },
+  {
+    id: 'eternity',
+    icon: '∞',
+    name: 'Круг Вечности',
+    desc: '+1200 эха за клик. Время, застывшее в жесте.',
+    baseCost: 5000000,
+    multiplier: 1.25,
+    type: 'click',
+    value: 1200
+  },
+  {
+    id: 'cosmos',
+    icon: '✺',
+    name: 'Дыхание Космоса',
+    desc: '+1800 эха в секунду. Вселенная вдыхает — ты выдыхаешь.',
+    baseCost: 20000000,
+    multiplier: 1.25,
+    type: 'auto',
+    value: 1800
+  },
+  {
+    id: 'absolute',
+    icon: '✧',
+    name: 'Абсолют',
+    desc: '+10000 эха за клик. За гранью — только ты.',
+    baseCost: 500000000,
+    multiplier: 1.3,
+    type: 'click',
+    value: 10000
+  },
+  {
+    id: 'source',
+    icon: '⊛',
+    name: 'Первоисточник',
+    desc: '+15000 эха в секунду. Откуда всё пришло — туда всё вернётся.',
+    baseCost: 2000000000,
+    multiplier: 1.3,
+    type: 'auto',
+    value: 15000
+  }
+];
+
+let state = {
+  score: 0,
+  totalClicks: 0,
+  totalEarned: 0,
+  levels: {},
+  perClick: 1,
+  perSec: 0
+};
+
+upgrades.forEach(u => state.levels[u.id] = 0);
+
+function save() {
+  localStorage.setItem('echoClicker', JSON.stringify(state));
+}
+
+function load() {
+  const data = localStorage.getItem('echoClicker');
+  if (data) {
+    try {
+      const parsed = JSON.parse(data);
+      state = { ...state, ...parsed };
+      upgrades.forEach(u => { if (state.levels[u.id] === undefined) state.levels[u.id] = 0; });
+    } catch (e) {}
+  }
+}
+
+function formatNum(n) {
+  if (n < 1000) return Math.floor(n).toString();
+  const units = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc', 'No', 'Dc'];
+  let i = 0;
+  while (n >= 1000 && i < units.length - 1) { n /= 1000; i++; }
+  return n.toFixed(n < 10 ? 2 : n < 100 ? 1 : 0) + units[i];
+}
+
+function getCost(u) {
+  const lvl = state.levels[u.id];
+  return Math.floor(u.baseCost * Math.pow(u.multiplier, lvl));
+}
+
+function recalc() {
+  let clickAdd = 1;
+  let autoAdd = 0;
+  upgrades.forEach(u => {
+    const lvl = state.levels[u.id];
+    if (u.type === 'click') clickAdd += u.value * lvl;
+    else autoAdd += u.value * lvl;
+  });
+  state.perClick = clickAdd;
+  state.perSec = autoAdd;
+}
+
+function render() {
+  document.getElementById('score').textContent = formatNum(state.score);
+  document.getElementById('perSec').textContent = formatNum(state.perSec) + ' эха / сек';
+  document.getElementById('perClick').textContent = formatNum(state.perClick);
+  document.getElementById('totalClicks').textContent = formatNum(state.totalClicks);
+  document.getElementById('totalEarned').textContent = formatNum(state.totalEarned);
+  document.getElementById('upgradesOwned').textContent = upgrades.reduce((a, u) => a + state.levels[u.id], 0);
+
+  const container = document.getElementById('upgrades');
+  upgrades.forEach(u => {
+    let el = document.getElementById('up_' + u.id);
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'up_' + u.id;
+      el.className = 'upgrade';
+      el.innerHTML = `
+        <div class="upgrade-icon">${u.icon}</div>
+        <div class="upgrade-info">
+          <div class="upgrade-name">${u.name}</div>
+          <div class="upgrade-desc">${u.desc}</div>
+        </div>
+        <div class="upgrade-cost"></div>
+        <div class="upgrade-level"></div>
+      `;
+      el.addEventListener('click', () => buy(u));
+      container.appendChild(el);
+    }
+    const cost = getCost(u);
+    const canAfford = state.score >= cost;
+    el.classList.toggle('disabled', !canAfford);
+    el.querySelector('.upgrade-cost').innerHTML = `${formatNum(cost)}<small>эха</small>`;
+    el.querySelector('.upgrade-level').textContent = '×' + state.levels[u.id];
+  });
+}
+
+function buy(u) {
+  const cost = getCost(u);
+  if (state.score < cost) return;
+  state.score -= cost;
+  state.levels[u.id]++;
+  recalc();
+  render();
+  save();
+}
+
+function doClick(e) {
+  state.score += state.perClick;
+  state.totalEarned += state.perClick;
+  state.totalClicks++;
+  const scoreEl = document.getElementById('score');
+  scoreEl.classList.add('pop');
+  setTimeout(() => scoreEl.classList.remove('pop'), 100);
+
+  const float = document.createElement('div');
+  float.className = 'float';
+  float.textContent = '+' + formatNum(state.perClick);
+  const x = e.clientX || (e.touches && e.touches[0].clientX) || window.innerWidth / 2;
+  const y = e.clientY || (e.touches && e.touches[0].clientY) || window.innerHeight / 2;
+  float.style.left = x + 'px';
+  float.style.top = y + 'px';
+  float.style.transform = 'translate(-50%, -50%)';
+  document.body.appendChild(float);
+  setTimeout(() => float.remove(), 1000);
+
+  render();
+}
+
+document.getElementById('clickBtn').addEventListener('click', doClick);
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (confirm('Растворить всё эхо? Прогресс исчезнет навсегда.')) {
+    state = { score: 0, totalClicks: 0, totalEarned: 0, levels: {}, perClick: 1, perSec: 0 };
+    upgrades.forEach(u => state.levels[u.id] = 0);
+    recalc();
+    render();
+    save();
+  }
+});
+
+// Автодобыча
+let lastTick = performance.now();
+setInterval(() => {
+  const now = performance.now();
+  const dt = (now - lastTick) / 1000;
+  lastTick = now;
+  if (state.perSec > 0) {
+    const gain = state.perSec * dt;
+    state.score += gain;
+    state.totalEarned += gain;
+    render();
+  }
+}, 100);
+
+// Автосохранение
+setInterval(save, 3000);
+window.addEventListener('beforeunload', save);
+
+load();
+recalc();
+render();
+</script>
+</body>
+</html>
